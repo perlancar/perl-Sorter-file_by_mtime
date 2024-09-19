@@ -14,6 +14,7 @@ sub meta {
         v => 1,
         summary => 'Sort files by mtime (modification time)',
         args => {
+            follow_symlink => {schema=>'bool*', default=>1},
             reverse => {schema => 'bool*'},
             ci => {schema => 'bool*'},
         },
@@ -23,14 +24,15 @@ sub meta {
 sub gen_sorter {
     my %args = @_;
 
+    my $follow_symlink = $args{follow_symlink} // 1;
     my $reverse = $args{reverse};
 
     sub {
         my @items = @_;
-        my @mtimes = map { -M $_ } @items;
+        my @mtimes = map { my @st = $follow_symlink ? stat($_) : lstat($_); $st[9] } @items;
 
         map { $items[$_] } sort {
-            $reverse ? $mtimes[$a] <=> $mtimes[$b] : $mtimes[$b] <=> $mtimes[$a]
+            $reverse ? $mtimes[$b] <=> $mtimes[$a] : $mtimes[$a] <=> $mtimes[$b]
         } 0 .. $#items;
     };
 }
@@ -63,8 +65,20 @@ This sorter assumes items are filenames and sort them by modification time
 
 =head1 SORTER ARGUMENTS
 
+=head2 follow_symlink
+
+Bool, default true. If set to false, will use C<lstat()> function instead of the
+default C<stat()>.
+
 =head2 reverse
 
 Bool.
+
+
+=head1 SEE ALSO
+
+L<Comparer::file_mtime>
+
+L<SortKey::Num::file_mtime>
 
 =cut
